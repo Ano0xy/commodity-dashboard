@@ -1,13 +1,73 @@
 export async function getGoldSilverPrices() {
-  try {
-    // Fetch metals prices from Metals API (free, no auth required)
-    const metalsRes = await fetch("https://api.metals.live/v1/spot/metals?metals=gold,silver,platinum,palladium", {
-      next: { revalidate: 300 }
-    });
+  const goldApiKey = process.env.NEXT_PUBLIC_GOLD_API_KEY;
+  const TROY_OZ_TO_GRAM = 31.1035;
+  const GST_RATE = 1.18;
 
-    // Fetch USD to INR exchange rate
+  try {
+    if (goldApiKey) {
+      // GoldAPI path (requires NEXT_PUBLIC_GOLD_API_KEY)
+      const headers = { "x-access-token": goldApiKey };
+      const [goldRes, silverRes, platinumRes, palladiumRes] = await Promise.all([
+        fetch("https://api.goldapi.io/api/XAU/INR", { headers, next: { revalidate: 300 } }),
+        fetch("https://api.goldapi.io/api/XAG/INR", { headers, next: { revalidate: 300 } }),
+        fetch("https://api.goldapi.io/api/XPT/INR", { headers, next: { revalidate: 300 } }),
+        fetch("https://api.goldapi.io/api/XPD/INR", { headers, next: { revalidate: 300 } }),
+      ]);
+
+      if (!goldRes.ok || !silverRes.ok || !platinumRes.ok || !palladiumRes.ok) {
+        throw new Error("GoldAPI request failed");
+      }
+
+      const [goldData, silverData, platinumData, palladiumData] = await Promise.all([
+        goldRes.json(),
+        silverRes.json(),
+        platinumRes.json(),
+        palladiumRes.json(),
+      ]);
+
+      const gold24k = goldData.price_gram_24k;
+      const gold22k = goldData.price_gram_22k;
+      const gold18k = goldData.price_gram_18k;
+
+      const silverPerGramINR = silverData.price / TROY_OZ_TO_GRAM;
+      const silverPerKg = silverPerGramINR * 1000;
+      const silver925PerKg = silverPerKg * 0.925;
+
+      const platinumPerGramINR = platinumData.price / TROY_OZ_TO_GRAM;
+      const palladiumPerGramINR = palladiumData.price / TROY_OZ_TO_GRAM;
+
+      const gold24kWithGST = gold24k * GST_RATE;
+      const silverPerKgWithGST = silverPerKg * GST_RATE;
+      const silver925PerKgWithGST = silver925PerKg * GST_RATE;
+      const platinumWithGST = platinumPerGramINR * GST_RATE;
+      const palladiumWithGST = palladiumPerGramINR * GST_RATE;
+
+      return {
+        gold24k: gold24k?.toFixed(2),
+        gold22k: gold22k?.toFixed(2),
+        gold18k: gold18k?.toFixed(2),
+        gold24kWithGST: gold24kWithGST?.toFixed(2),
+        silverPerKg: silverPerKg?.toFixed(2),
+        silver925PerKg: silver925PerKg?.toFixed(2),
+        silverPerKgWithGST: silverPerKgWithGST?.toFixed(2),
+        silver925PerKgWithGST: silver925PerKgWithGST?.toFixed(2),
+        platinumPerGram: platinumPerGramINR?.toFixed(2),
+        platinumWithGST: platinumWithGST?.toFixed(2),
+        palladiumPerGram: palladiumPerGramINR?.toFixed(2),
+        palladiumWithGST: palladiumWithGST?.toFixed(2),
+        goldChange: goldData.chp ?? 0,
+        silverChange: silverData.chp ?? 0,
+        platinumChange: platinumData.chp ?? 0,
+        palladiumChange: palladiumData.chp ?? 0,
+      };
+    }
+
+    // Fallback path: free metals.live + exchange rate conversion
+    const metalsRes = await fetch("https://api.metals.live/v1/spot/metals?metals=gold,silver,platinum,palladium", {
+      next: { revalidate: 300 },
+    });
     const exchangeRes = await fetch("https://open.er-api.com/v6/latest/USD", {
-      next: { revalidate: 3600 } // Exchange rates change less frequently
+      next: { revalidate: 3600 },
     });
 
     if (!metalsRes.ok || !exchangeRes.ok) {
@@ -16,39 +76,30 @@ export async function getGoldSilverPrices() {
 
     const metalsData = await metalsRes.json();
     const exchangeData = await exchangeRes.json();
-
     const usdToInr = exchangeData.rates.INR;
 
-    // Gold: price is per troy oz in USD. Convert to INR then to per gram.
     const goldPricePerTroyOzUSD = metalsData.metals.gold.current;
     const goldPricePerTroyOzINR = goldPricePerTroyOzUSD * usdToInr;
-    const TROY_OZ_TO_GRAM = 31.1035;
     const goldPerGramINR = goldPricePerTroyOzINR / TROY_OZ_TO_GRAM;
 
-    // Gold karats: 24k = 100%, 22k = 91.67%, 18k = 75%
     const gold24k = goldPerGramINR;
     const gold22k = goldPerGramINR * 0.9167;
     const gold18k = goldPerGramINR * 0.75;
 
-    // Silver: price is per troy oz in USD. Convert to INR then to per kg.
     const silverPricePerTroyOzUSD = metalsData.metals.silver.current;
     const silverPricePerTroyOzINR = silverPricePerTroyOzUSD * usdToInr;
     const silverPerGramINR = silverPricePerTroyOzINR / TROY_OZ_TO_GRAM;
-    const silverPerKg = silverPerGramINR * 1000;         // 999 pure silver per kg
-    const silver925PerKg = silverPerKg * 0.925;          // 925 sterling silver per kg
+    const silverPerKg = silverPerGramINR * 1000;
+    const silver925PerKg = silverPerKg * 0.925;
 
-    // Platinum: price is per troy oz in USD. Convert to INR then to per gram.
     const platinumPricePerTroyOzUSD = metalsData.metals.platinum.current;
     const platinumPricePerTroyOzINR = platinumPricePerTroyOzUSD * usdToInr;
     const platinumPerGramINR = platinumPricePerTroyOzINR / TROY_OZ_TO_GRAM;
 
-    // Palladium: price is per troy oz in USD. Convert to INR then to per gram.
     const palladiumPricePerTroyOzUSD = metalsData.metals.palladium.current;
     const palladiumPricePerTroyOzINR = palladiumPricePerTroyOzUSD * usdToInr;
     const palladiumPerGramINR = palladiumPricePerTroyOzINR / TROY_OZ_TO_GRAM;
 
-    // Calculate with 18% GST
-    const GST_RATE = 1.18;
     const gold24kWithGST = gold24k * GST_RATE;
     const silverPerKgWithGST = silverPerKg * GST_RATE;
     const silver925PerKgWithGST = silver925PerKg * GST_RATE;
@@ -68,13 +119,12 @@ export async function getGoldSilverPrices() {
       platinumWithGST: platinumWithGST?.toFixed(2),
       palladiumPerGram: palladiumPerGramINR?.toFixed(2),
       palladiumWithGST: palladiumWithGST?.toFixed(2),
-      goldChange: 0, // Metals API doesn't provide change, so default to 0
+      goldChange: 0,
       silverChange: 0,
       platinumChange: 0,
       palladiumChange: 0,
     };
   } catch (error) {
-    // Fallback to Rajkot GoodReturns rates (March 26, 2026)
     console.warn("Failed to fetch live prices, using Rajkot fallback rates:", error);
     return {
       gold24k: "14694.00",
@@ -85,9 +135,9 @@ export async function getGoldSilverPrices() {
       silver925PerKg: "231250.00",
       silverPerKgWithGST: "295000.00",
       silver925PerKgWithGST: "272575.00",
-      platinumPerGram: "3500.00",  // Approximate fallback
+      platinumPerGram: "3500.00",
       platinumWithGST: "4130.00",
-      palladiumPerGram: "2800.00",  // Approximate fallback
+      palladiumPerGram: "2800.00",
       palladiumWithGST: "3304.00",
       goldChange: 0.15,
       silverChange: 0.0,
