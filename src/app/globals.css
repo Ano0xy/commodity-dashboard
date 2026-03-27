@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0B0B0F;
+  --foreground: #ededed;
+  --bg-primary: #0B0B0F;
+  --bg-secondary: #12121A;
+  --border-color: #2A2A35;
+  --gold: #FFD700;
+  --silver: #C0C0C0;
+  --green: #00FF9C;
+  --red: #FF4D4D;
+  --accent: #4F9C8F;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Starry Night Sky Background */
+.starry-sky {
+  position: relative;
+  background: 
+    radial-gradient(2px 2px at 20px 30px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(2px 2px at 60px 70px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 50px 50px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 130px 80px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(2px 2px at 90px 10px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 130px 130px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(2px 2px at 10px 90px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 40px 80px, white, rgba(255,255,255,.2), transparent),
+    radial-gradient(1px 1px at 100px 100px, white, rgba(255,255,255,.2), transparent),
+    linear-gradient(135deg, #0a0a15 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0B0B0F 100%);
+  background-size: 200px 200px, 150px 150px, 180px 180px, 220px 220px, 170px 170px, 190px 190px, 160px 160px, 210px 210px, 140px 140px, 100% 100%;
+  background-attachment: fixed;
+  background-blend-mode: screen;
+}
+
+/* Smooth fade effect at top border */
+.starry-sky::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(180deg, rgba(11, 11, 15, 0.95) 0%, rgba(11, 11, 15, 0.7) 40%, rgba(11, 11, 15, 0.3) 80%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
