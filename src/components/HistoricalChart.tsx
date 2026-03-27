@@ -40,7 +40,7 @@ export default function HistoricalChart() {
                   <span className={selectedId === item.id ? 'text-white font-bold' : ''}>{item.name}</span>
                   {selectedId === item.id && (
                     <span className="text-sm px-2 py-1 rounded bg-bgSecondary border border-borderDark text-gray-300">
-                      {item.price}
+                      {item.pricePerGram}
                     </span>
                   )}
                 </div>
